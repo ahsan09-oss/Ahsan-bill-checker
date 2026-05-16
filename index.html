@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AHSAN BILL CHECKER - All Pakistan</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .main-box {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+        }
+
+        .logo { font-size: 50px; margin-bottom: 10px; }
+
+        h2 {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+            font-size: 1.5em;
+        }
+
+        .sub { color: #777; font-size: 13px; margin-bottom: 20px; }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .tab.on {
+            background: #4facfe;
+            border-color: #4facfe;
+            color: #000;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 14px;
+            background: #0a0a0a;
+            border: 2px solid #333;
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        select:focus, input:focus { border-color: #4facfe; }
+        select option { background: #1a1a1a; color: white; }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        .msg {
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .msg.err { background: rgba(255,71,87,0.15); color: #ff4757; }
+        .msg.ok { background: rgba(46,213,115,0.15); color: #2ed573; }
+        .msg.info { background: rgba(79,172,254,0.15); color: #4facfe; }
+
+        .recent-box {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+            text-align: left;
+            display: none;
+        }
+
+        .recent-box h4 {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .recent-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .recent-item:hover { background: #1a1a1a; }
+        .recent-item .r-company { color: #4facfe; font-weight: bold; }
+        .recent-item .r-ref { color: #888; font-family: monospace; }
+        .recent-item .r-delete { color: #ff4757; cursor: pointer; font-size: 18px; }
+
+        .note {
+            margin-top: 15px;
+            font-size: 10px;
+            color: #555;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-box">
+        <div class="logo">🧾</div>
+        <h2>AHSAN BILL CHECKER</h2>
+        <p class="sub">All Pakistan Electricity & Gas Bills</p>
+
+        <div class="tabs">
+            <div class="tab on" id="tabE" onclick="pick('electricity')">⚡ Electricity</div>
+            <div class="tab" id="tabG" onclick="pick('gas')">🔥 Gas</div>
+        </div>
+
+        <select id="company" onchange="onCompanyChange()">
+            <option value="">-- Select Company --</option>
+        </select>
+
+        <input type="text" id="refNo" placeholder="Reference Number" autocomplete="off">
+
+        <div class="msg err" id="errMsg"></div>
+        <div class="msg ok" id="okMsg"></div>
+        <div class="msg info" id="infoMsg"></div>
+
+        <button class="btn" onclick="check()">🔍 Check Bill</button>
+
+        <div class="recent-box" id="recentBox">
+            <h4>🕐 Recent Searches (Click to reuse)</h4>
+            <div id="recentList"></div>
+        </div>
+
+        <p class="note">
+            ⚠️ Bill official website se fetch hota hai.<br>
+            Reference number save rahega - dubara type nahi karna padega!
+        </p>
+    </div>
+
+    <script>
+        // COMPLETE PAKISTAN COMPANIES DATABASE
+        const data = {
+            electricity: [
+                { name: 'MEPCO (Multan)', url: 'https://bill.pitc.com.pk/mepcobill', hint: '14-digit Ref Number (e.g., 12345678901234)' },
+                { name: 'LESCO (Lahore)', url: 'https://bill.pitc.com.pk/lescobill', hint: '14-digit Ref Number' },
+                { name: 'GEPCO (Gujranwala)', url: 'https://bill.pitc.com.pk/gepcobill', hint: '14-digit Ref Number' },
+                { name: 'FESCO (Faisalabad)', url: 'https://bill.pitc.com.pk/fescobill', hint: '14-digit Ref Number' },
+                { name: 'IESCO (Islamabad)', url: 'https://bill.pitc.com.pk/iescobill', hint: '14-digit Ref Number' },
+                { name: 'HESCO (Hyderabad)', url: 'https://bill.pitc.com.pk/hescobill', hint: '14-digit Ref Number' },
+                { name: 'PESCO (Peshawar)', url: 'https://bill.pitc.com.pk/pescobill', hint: '14-digit Ref Number' },
+                { name: 'QESCO (Quetta)', url: 'https://bill.pitc.com.pk/qescobill', hint: '14-digit Ref Number' },
+                { name: 'SEPCO (Sukkur)', url: 'https://bill.pitc.com.pk/sepcobill', hint: '14-digit Ref Number' },
+                { name: 'TESCO (Tribal Areas)', url: 'https://bill.pitc.com.pk/tescobill', hint: '14-digit Ref Number' },
+                { name: 'HAZECO (Hazara)', url: 'https://bill.pitc.com.pk/hazecobill', hint: '14-digit Ref Number' },
+                { name: 'K-ELECTRIC (Karachi)', url: 'https://www.ke.com.pk/customer-services/billls-and-e-payments', hint: 'Consumer Number' },
+                { name: 'AJK (Azad Kashmir)', url: 'https://bill.pitc.com.pk/ajkbill', hint: '14-digit Ref Number' }
+            ],
+            gas: [
+                { name: 'SNGPL (Sui Northern)', url: 'https://www.sngpl.com.pk/login.jsp?mdids=85', hint: '11-digit Consumer No' },
+                { name: 'SSGC (Sui Southern)', url: 'https://viewbill.ssgc.com.pk/web', hint: '11-digit Consumer No' }
+            ]
+        };
+
+        let type = 'electricity';
+        let selectedCompany = null;
+
+        // Initialize
+        function init() {
+            pick('electricity');
+            loadRecent();
+        }
+
+        // Switch tabs
+        window.pick = function(t) {
+            type = t;
+            document.getElementById('tabE').className = t === 'electricity' ? 'tab on' : 'tab';
+            document.getElementById('tabG').className = t === 'gas' ? 'tab on' : 'tab';
+            
+            const sel = document.getElementById('company');
+            sel.innerHTML = '<option value="">-- Select Company --</option>';
+            data[t].forEach((c, i) => {
+                sel.innerHTML += `<option value="${i}">🏛️ ${c.name}</option>`;
+            });
+            
+            document.getElementById('refNo').placeholder = 'Reference Number';
+            document.getElementById('refNo').value = '';
+            selectedCompany = null;
+            hideMsgs();
+        };
+
+        // Company change
+        window.onCompanyChange = function() {
+            const idx = document.getElementById('company').value;
+            if (idx !== '') {
+                selectedCompany = data[type][idx];
+                document.getElementById('refNo').placeholder = selectedCompany.hint;
+                
+                // Auto-fill from recent if exists
+                const recent = getRecent();
+                const found = recent.find(r => r.company === selectedCompany.name);
+                if (found) {
+                    document.getElementById('refNo').value = found.ref;
+                    showMsg('info', '📋 Previous reference auto-filled!');
+                }
+            } else {
+                selectedCompany = null;
+            }
+            hideMsgs('err');
+        };
+
+        // Check Bill
+        window.check = function() {
+            const refNo = document.getElementById('refNo').value.trim();
+            
+            hideMsgs();
+
+            if (!selectedCompany) {
+                showMsg('err', '❌ Please select a company first');
+                return;
+            }
+
+            if (!refNo) {
+                showMsg('err', '❌ Please enter reference number');
+                return;
+            }
+
+            // Save to recent
+            saveRecent(selectedCompany.name, refNo, type);
+
+            // Show success
+            showMsg('ok', `✅ Opening ${selectedCompany.name}...`);
+            
+            // Copy ref to clipboard for easy paste
+            copyToClipboard(refNo);
+
+            // Open official website in new tab
+            setTimeout(() => {
+                window.open(selectedCompany.url, '_blank');
+                
+                // Show helpful message
+                showMsg('info', '💡 Reference copied! Just paste (Ctrl+V) on the website.');
+            }, 400);
+        };
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).catch(() => {});
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+        }
+
+        // Recent Searches (LocalStorage)
+        function getRecent() {
+            try {
+                return JSON.parse(localStorage.getItem('billRecent') || '[]');
+            } catch(e) { return []; }
+        }
+
+        function saveRecent(company, ref, type) {
+            let recent = getRecent();
+            // Remove duplicate
+            recent = recent.filter(r => !(r.company === company && r.ref === ref));
+            // Add to front
+            recent.unshift({ company, ref, type, time: Date.now() });
+            // Keep last 20
+            if (recent.length > 20) recent = recent.slice(0, 20);
+            localStorage.setItem('billRecent', JSON.stringify(recent));
+            loadRecent();
+        }
+
+        function loadRecent() {
+            const recent = getRecent();
+            const box = document.getElementById('recentBox');
+            const list = document.getElementById('recentList');
+            
+            if (recent.length === 0) {
+                box.style.display = 'none';
+                return;
+            }
+            
+            box.style.display = 'block';
+            list.innerHTML = recent.map((r, i) => `
+                <div class="recent-item">
+                    <span class="r-company" onclick="useRecent('${r.company}', '${r.ref}')">🏛️ ${r.company}</span>
+                    <span class="r-ref" onclick="useRecent('${r.company}', '${r.ref}')">${r.ref}</span>
+                    <span class="r-delete" onclick="deleteRecent(${i})" title="Remove">×</span>
+                </div>
+            `).join('');
+        }
+
+        window.useRecent = function(company, ref) {
+            // Find company in data
+            for (const t of ['electricity', 'gas']) {
+                const idx = data[t].findIndex(c => c.name === company);
+                if (idx !== -1) {
+                    pick(t);
+                    document.getElementById('company').value = idx;
+                    onCompanyChange();
+                    document.getElementById('refNo').value = ref;
+                    document.getElementById('mainBox').scrollIntoView({ behavior: 'smooth' });
+                    break;
+                }
+            }
+        };
+
+        window.deleteRecent = function(index) {
+            let recent = getRecent();
+            recent.splice(index, 1);
+            localStorage.setItem('billRecent', JSON.stringify(recent));
+            loadRecent();
+        };
+
+        // Messages
+        function showMsg(type, text) {
+            const el = document.getElementById(type + 'Msg');
+            el.textContent = text;
+            el.style.display = 'block';
+            if (type !== 'err') {
+                setTimeout(() => { el.style.display = 'none'; }, 5000);
+            }
+        }
+
+        function hideMsgs(except) {
+            ['err', 'ok', 'info'].forEach(t => {
+                if (t !== except) document.getElementById(t + 'Msg').style.display = 'none';
+            });
+        }
+
+        // Enter key
+        document.getElementById('refNo').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') check();
+        });
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
